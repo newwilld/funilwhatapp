@@ -15,7 +15,7 @@
                         sans: ['Inter', 'sans-serif'],
                     },
                     colors: {
-                        whatsapp: '#25D366', // Cor oficial do WhatsApp
+                        whatsapp: '#25D366', 
                         'whatsapp-dark': '#128C7E',
                         background: '#f8fafc',
                         card: '#ffffff',
@@ -28,13 +28,13 @@
     <style>
         body {
             background-color: theme('colors.background');
-            background-image: linear-gradient(135deg, #f0fdf4 0%, #e2e8f0 100%); /* Fundo levemente esverdeado */
+            background-image: linear-gradient(135deg, #f0fdf4 0%, #e2e8f0 100%);
             min-height: 100vh;
         }
 
         .step-box {
             transition: all 0.2s ease-in-out;
-            touch-action: manipulation; /* Melhora a resposta ao toque em dispositivos móveis */
+            touch-action: manipulation; 
         }
 
         .step-box:active {
@@ -42,7 +42,6 @@
             background-color: theme('colors.gray.100');
         }
 
-        /* Animação para o modal */
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -62,6 +61,7 @@
 
         .custom-scrollbar::-webkit-scrollbar {
             height: 6px;
+            width: 6px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
             background: #f1f5f9; 
@@ -74,16 +74,40 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #94a3b8; 
         }
+
+        /* Spinner de Loading */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #25D366;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
 <body class="flex items-center justify-center p-4 antialiased text-gray-800">
 
+    <!-- Tela de Loading Inicial do Firebase -->
+    <div id="firebase-loading" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center">
+        <div class="loader mb-4 w-12 h-12 border-4"></div>
+        <p class="text-gray-600 font-medium">Conectando à nuvem...</p>
+    </div>
+
     <!-- Card Container -->
-    <div class="w-full max-w-3xl bg-card rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+    <div class="w-full max-w-3xl bg-card rounded-2xl shadow-lg border border-gray-200 overflow-hidden relative">
         
         <!-- Header Section -->
-        <div class="text-center pt-8 pb-4 px-6 border-b border-gray-100 bg-white">
+        <div class="text-center pt-8 pb-4 px-6 border-b border-gray-100 bg-white relative">
+            <div id="cloud-status" class="absolute top-4 right-4 flex items-center gap-1 text-xs font-semibold text-whatsapp bg-green-50 px-2 py-1 rounded-full border border-green-200" title="Sincronizado com a nuvem">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+                Online
+            </div>
             <h1 class="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight mb-1">
                 Fernando Santos
             </h1>
@@ -96,7 +120,7 @@
         <div class="px-6 pt-4 pb-2 border-b border-gray-100 bg-gray-50 flex flex-col gap-3">
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-2">
-                    <h3 class="text-sm font-semibold text-gray-700">Importar Contatos</h3>
+                    <h3 class="text-sm font-semibold text-gray-700">Contatos Salvos na Nuvem</h3>
                     <span id="imported-count-badge" class="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full hidden shadow-sm border border-green-200">
                         0 contatos
                     </span>
@@ -109,7 +133,7 @@
             </div>
             
             <!-- Imported Clients List (Grid) -->
-            <div id="clients-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto custom-scrollbar p-1 hidden">
+            <div id="clients-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar p-1 hidden">
                 <!-- Javascript irá gerar os cards dos clientes aqui -->
             </div>
             
@@ -145,7 +169,7 @@
             </div>
 
             <div class="md:col-span-2">
-                <label for="client-city" class="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
+                <label for="client-city" class="block text-sm font-medium text-gray-700 mb-2">Cidade (ou Segmento/Nicho)</label>
                 <input type="text" id="client-city" class="block w-full sm:text-sm border-gray-300 rounded-md p-3 border focus:ring-whatsapp focus:border-whatsapp outline-none transition-shadow" placeholder="Ex: São Paulo">
                 <p class="mt-1 text-xs text-gray-500">Variável: {{cidade}}</p>
             </div>
@@ -155,25 +179,34 @@
         <div class="p-6 md:p-8 pt-4">
             <p class="text-center text-sm text-gray-600 mb-6 font-medium">Toque para enviar a mensagem. Pressione e segure para editar.</p>
             
-            <!-- Grid for the boxes -->
-            <!-- Mobile: 4 columns, 2 rows. Tablet/Desktop: 8 columns, 1 row -->
             <div id="steps-container" class="grid grid-cols-4 gap-3 sm:gap-4 md:grid-cols-8 justify-items-center">
                 <!-- Javascript will generate the boxes here -->
             </div>
+
+            <!-- Histórico de Envios -->
+            <div id="history-wrapper" class="mt-8 pt-6 border-t border-gray-200 hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Histórico de Envios</h3>
+                    </div>
+                </div>
+                <div id="history-list" class="max-h-60 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-2">
+                    <!-- Histórico gerado via JS -->
+                </div>
+                <div id="empty-history" class="text-sm text-gray-500 italic bg-gray-50 p-4 rounded-lg text-center border border-dashed border-gray-300 hidden">
+                    Nenhuma mensagem enviada para este cliente ainda.
+                </div>
+            </div>
         </div>
         
-        <!-- Decorative bottom bar -->
         <div class="h-2 w-full bg-whatsapp"></div>
     </div>
 
-    <!-- Modal de Edição (Inicialmente Oculto) -->
+    <!-- Modal de Edição -->
     <div id="edit-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
-        <!-- Overlay escuro -->
         <div class="modal-overlay absolute inset-0 bg-black bg-opacity-50" id="modal-backdrop"></div>
-        
-        <!-- Conteúdo do Modal -->
         <div class="modal-content relative bg-white rounded-xl shadow-2xl w-full max-w-md m-4 flex flex-col max-h-[90vh]">
-            <!-- Header do Modal -->
             <div class="flex justify-between items-center p-5 border-b border-gray-100">
                 <h3 class="text-lg font-semibold text-gray-900" id="modal-title">Editar Mensagem - Passo X</h3>
                 <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600 transition-colors">
@@ -181,7 +214,6 @@
                 </button>
             </div>
             
-            <!-- Corpo do Modal (Textarea) -->
             <div class="p-5 flex-1 overflow-y-auto">
                 <label for="message-template" class="block text-sm font-medium text-gray-700 mb-2">Modelo de Mensagem</label>
                 <textarea id="message-template" rows="6" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-whatsapp focus:border-whatsapp outline-none resize-none text-gray-700" placeholder="Digite sua mensagem aqui..."></textarea>
@@ -196,575 +228,642 @@
                         <code>{{data}}</code>
                         <code>{{hora}}</code>
                     </div>
-                    <p class="text-[10px] text-blue-500 mt-2">Clique na variável acima para copiá-la ou digite no texto.</p>
+                    <p class="text-[10px] text-blue-500 mt-2">Clique na variável acima para copiá-la.</p>
                 </div>
             </div>
             
-            <!-- Footer do Modal (Botões) -->
             <div class="p-5 border-t border-gray-100 flex justify-end space-x-3 bg-gray-50 rounded-b-xl">
                 <button id="cancel-edit-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-whatsapp">
                     Cancelar
                 </button>
                 <button id="save-edit-btn" class="px-4 py-2 text-sm font-medium text-white bg-whatsapp border border-transparent rounded-lg hover:bg-whatsapp-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-whatsapp transition-colors shadow-sm">
-                    Salvar
+                    Salvar na Nuvem
                 </button>
             </div>
-            
-            <!-- Campo oculto para guardar o passo atual sendo editado -->
             <input type="hidden" id="current-editing-step" value="">
         </div>
     </div>
 
     <!-- Mensagem de Sucesso Toast -->
     <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg transform transition-all duration-300 translate-y-20 opacity-0 z-50 flex items-center space-x-2">
-        <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <svg class="w-5 h-5 text-green-400" id="toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
         <span id="toast-message">Salvo com sucesso!</span>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const container = document.getElementById('steps-container');
-            const totalSteps = 8;
-            
-            // Inputs
-            const phoneInput = document.getElementById('client-phone');
-            const nameInput = document.getElementById('client-name');
-            const companyInput = document.getElementById('client-company');
-            const cityInput = document.getElementById('client-city');
-            
-            // Modal Elements
-            const modal = document.getElementById('edit-modal');
-            const modalBackdrop = document.getElementById('modal-backdrop');
-            const closeModalBtn = document.getElementById('close-modal-btn');
-            const cancelEditBtn = document.getElementById('cancel-edit-btn');
-            const saveEditBtn = document.getElementById('save-edit-btn');
-            const modalTitle = document.getElementById('modal-title');
-            const messageTextarea = document.getElementById('message-template');
-            const currentEditingStepInput = document.getElementById('current-editing-step');
-            const toast = document.getElementById('toast');
-            const toastMessage = document.getElementById('toast-message');
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-            // Elementos de Importação JSON
-            const fileInput = document.getElementById('json-file-input');
-            const importBtn = document.getElementById('import-json-btn');
-            const clientsListContainer = document.getElementById('clients-list');
-            const countBadge = document.getElementById('imported-count-badge');
-            const paginationControls = document.getElementById('pagination-controls');
+        // Configuração do Firebase
+        const userProvidedConfig = {
+            apiKey: "AIzaSyBFgUTw6mkKBnhZDuM6NQoAHi7SrGqrcEs",
+            authDomain: "funilwhats.firebaseapp.com",
+            projectId: "funilwhats",
+            storageBucket: "funilwhats.firebasestorage.app",
+            messagingSenderId: "771806585364",
+            appId: "1:771806585364:web:d3a60e85e9070102413d01",
+            measurementId: "G-677E85FTF7"
+        };
+        
+        // Permite rodar no ambiente nativo (se existir as variáveis globais) ou com a config do usuário
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : userProvidedConfig;
+        const appIdentifier = typeof __app_id !== 'undefined' ? __app_id : 'funilwhats-app';
 
-            let importedClients = [];
-            window.selectedClientDate = null;
-            window.selectedClientTime = null;
-            window.selectedClientId = null; // Guarda o ID selecionado para manter a marcação ao mudar de página
-            
-            // Configurações de Paginação
-            let currentPage = 1;
-            const itemsPerPage = 15;
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-            // Default messages for the funnel with variables
-            const defaultMessages = {
-                1: "Olá {{nome}}! Vi que você se interessou pelos produtos da {{empresa}}. Como posso te ajudar hoje?",
-                2: "{{nome}}, temos algumas promoções especiais em armações esta semana na {{empresa}}. Gostaria de ver o catálogo?",
-                3: "Lembrando que fazemos exame de vista gratuito na compra dos óculos completos. Que dia fica melhor para você?",
-                4: "Seu exame de vista está agendado para o dia {{data}} às {{hora}}! Por favor, não esqueça de trazer sua receita antiga, se tiver.",
-                5: "Seus óculos estão prontos para retirada na {{empresa}}! Horário de funcionamento: 9h às 18h.",
-                6: "E aí {{nome}}, o que achou dos óculos novos? Tudo certo com a adaptação?",
-                7: "Já faz um tempo desde a sua última compra. Temos novidades na coleção, venha conferir em nossa loja em {{cidade}}!",
-                8: "Feliz aniversário {{nome}}! A {{empresa}} preparou um presente especial: 20% de desconto na sua próxima compra este mês."
+        // Estado Global
+        let currentUserUid = null;
+        let dbTemplates = {};
+        let dbClients = [];
+        let dbHistory = [];
+        
+        window.selectedClientDate = null;
+        window.selectedClientTime = null;
+        window.selectedClientId = null;
+        
+        // Paginação
+        let currentPage = 1;
+        const itemsPerPage = 15;
+        const totalSteps = 8;
+
+        // Elementos DOM
+        const ui = {
+            loadingScreen: document.getElementById('firebase-loading'),
+            container: document.getElementById('steps-container'),
+            phoneInput: document.getElementById('client-phone'),
+            nameInput: document.getElementById('client-name'),
+            companyInput: document.getElementById('client-company'),
+            cityInput: document.getElementById('client-city'),
+            modal: document.getElementById('edit-modal'),
+            modalTitle: document.getElementById('modal-title'),
+            messageTextarea: document.getElementById('message-template'),
+            currentEditingStepInput: document.getElementById('current-editing-step'),
+            fileInput: document.getElementById('json-file-input'),
+            clientsListContainer: document.getElementById('clients-list'),
+            countBadge: document.getElementById('imported-count-badge'),
+            paginationControls: document.getElementById('pagination-controls'),
+            historyWrapper: document.getElementById('history-wrapper'),
+            historyList: document.getElementById('history-list'),
+            emptyHistory: document.getElementById('empty-history')
+        };
+
+        const defaultMessages = {
+            1: "Olá {{nome}}! Vi que você se interessou pelos produtos da {{empresa}}. Como posso te ajudar hoje?",
+            2: "{{nome}}, temos algumas promoções especiais em armações esta semana na {{empresa}}. Gostaria de ver o catálogo?",
+            3: "Lembrando que fazemos exame de vista gratuito na compra dos óculos completos. Que dia fica melhor para você?",
+            4: "Seu exame de vista está agendado para o dia {{data}} às {{hora}}! Por favor, não esqueça de trazer sua receita antiga.",
+            5: "Seus óculos estão prontos para retirada na {{empresa}}! Horário de funcionamento: 9h às 18h.",
+            6: "E aí {{nome}}, o que achou dos óculos novos? Tudo certo com a adaptação?",
+            7: "Já faz um tempo desde a sua última compra. Temos novidades na coleção, venha conferir em nossa loja em {{cidade}}!",
+            8: "Feliz aniversário {{nome}}! A {{empresa}} preparou um presente especial: 20% de desconto na sua próxima compra."
+        };
+
+        // Inicialização Principal
+        async function initializeAppLogic() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                currentUserUid = auth.currentUser.uid;
+                
+                // Configura Listeners do Firestore
+                setupFirestoreListeners();
+                
+                // Cria as caixas numéricas
+                createBoxes();
+                
+                // Remove tela de loading
+                ui.loadingScreen.classList.add('hidden');
+                
+            } catch (error) {
+                console.error("Erro de Autenticação Firebase:", error);
+                showToast("Erro ao conectar na nuvem.", true);
+            }
+        }
+
+        function setupFirestoreListeners() {
+            if (!currentUserUid) return;
+
+            // 1. Ouvindo Templates (Config)
+            const templatesDocRef = doc(db, 'artifacts', appIdentifier, 'users', currentUserUid, 'config', 'templates');
+            onSnapshot(templatesDocRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    dbTemplates = snapshot.data();
+                } else {
+                    // Salva o padrão se não existir
+                    setDoc(templatesDocRef, defaultMessages, { merge: true });
+                    dbTemplates = { ...defaultMessages };
+                }
+            }, (error) => console.error("Erro Templates Snapshot:", error));
+
+            // 2. Ouvindo Clientes Importados
+            const clientsColRef = collection(db, 'artifacts', appIdentifier, 'users', currentUserUid, 'clients');
+            onSnapshot(clientsColRef, (snapshot) => {
+                dbClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // Ordena por data (mais recentes primeiro)
+                dbClients.sort((a, b) => b.timestamp - a.timestamp);
+                
+                updateClientsUI();
+            }, (error) => console.error("Erro Clients Snapshot:", error));
+
+            // 3. Ouvindo Histórico de Envios
+            const historyColRef = collection(db, 'artifacts', appIdentifier, 'users', currentUserUid, 'history');
+            onSnapshot(historyColRef, (snapshot) => {
+                dbHistory = snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
+                
+                // Atualiza a visualização do histórico caso um cliente esteja selecionado
+                renderHistory();
+            }, (error) => console.error("Erro History Snapshot:", error));
+        }
+
+        function getMessageForStep(stepNumber) {
+            return dbTemplates[stepNumber] || defaultMessages[stepNumber] || "";
+        }
+
+        function processVariables(message) {
+            const now = new Date();
+            const dataFormatada = window.selectedClientDate || now.toLocaleDateString('pt-BR');
+            const horaFormatada = window.selectedClientTime || now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            const variaveis = {
+                '{{nome}}': ui.nameInput.value.trim() || 'Cliente',
+                '{{telefone}}': ui.phoneInput.value.trim() || 'seu número',
+                '{{empresa}}': ui.companyInput.value.trim() || 'nossa empresa',
+                '{{cidade}}': ui.cityInput.value.trim() || 'nossa cidade',
+                '{{data}}': dataFormatada,
+                '{{hora}}': horaFormatada
             };
 
-            // Variáveis para detectar clique longo (long press)
-            let pressTimer;
-            const LONG_PRESS_DURATION = 500; // milissegundos
-            let isDragging = false; // Para evitar que o scroll acione o clique longo
+            let messageProcessed = message;
+            for (const [key, value] of Object.entries(variaveis)) {
+                const regex = new RegExp(key.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1"), 'g');
+                messageProcessed = messageProcessed.replace(regex, value);
+            }
+            return messageProcessed;
+        }
 
-            // Inicializa as mensagens no LocalStorage se não existirem
-            function initializeStorage() {
-                for (let i = 1; i <= totalSteps; i++) {
-                    if (!localStorage.getItem(`step_msg_${i}`)) {
-                        localStorage.setItem(`step_msg_${i}`, defaultMessages[i]);
+        async function sendWhatsAppMessage(stepNumber) {
+            let phone = ui.phoneInput.value.replace(/\D/g, ''); 
+            
+            if (!phone) {
+                showToast("Por favor, insira o número do cliente primeiro.", true);
+                ui.phoneInput.focus();
+                return;
+            }
+            
+            if (phone.length === 10 || phone.length === 11) {
+                phone = '55' + phone;
+            }
+
+            const rawMessage = getMessageForStep(stepNumber);
+            const processedMessage = processVariables(rawMessage);
+            const encodedMessage = encodeURIComponent(processedMessage);
+            
+            window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+            
+            await recordHistoryInCloud(stepNumber, processedMessage);
+        }
+
+        function getCurrentTrackerId() {
+            return window.selectedClientId || ui.phoneInput.value.replace(/\D/g, '');
+        }
+
+        async function recordHistoryInCloud(stepNumber, sentMessage) {
+            if (!currentUserUid) return;
+            const trackerId = getCurrentTrackerId();
+            if (!trackerId) return;
+
+            const now = new Date();
+            const historyColRef = collection(db, 'artifacts', appIdentifier, 'users', currentUserUid, 'history');
+            
+            try {
+                await addDoc(historyColRef, {
+                    clientId: trackerId,
+                    step: stepNumber,
+                    date: now.toLocaleDateString('pt-BR'),
+                    time: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                    timestamp: now.getTime(),
+                    message: sentMessage,
+                    serverTime: serverTimestamp()
+                });
+                // Snapshot listener will update UI automatically
+            } catch (error) {
+                console.error("Erro ao salvar histórico:", error);
+                showToast("Erro ao registrar no histórico", true);
+            }
+        }
+
+        function renderHistory() {
+            const trackerId = getCurrentTrackerId();
+            
+            if (!trackerId) {
+                ui.historyWrapper.classList.add('hidden');
+                return;
+            }
+
+            ui.historyWrapper.classList.remove('hidden');
+            
+            // Filtra e ordena em memória (Respeitando regra de não usar queries complexas)
+            const clientHistory = dbHistory
+                .filter(item => item.clientId === trackerId)
+                .sort((a, b) => b.timestamp - a.timestamp);
+                
+            if (clientHistory.length === 0) {
+                ui.historyList.classList.add('hidden');
+                ui.emptyHistory.classList.remove('hidden');
+                return;
+            }
+            
+            ui.emptyHistory.classList.add('hidden');
+            ui.historyList.classList.remove('hidden');
+            ui.historyList.innerHTML = '';
+            
+            clientHistory.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'bg-white border border-gray-100 rounded-lg shadow-sm text-sm animate-[fadeIn_0.3s_ease-out] overflow-hidden';
+                
+                const header = document.createElement('div');
+                header.className = 'flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 transition-colors select-none';
+                header.innerHTML = `
+                    <div class="bg-green-100 text-green-600 rounded-full p-1.5 flex-shrink-0">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <div class="flex-1">
+                        <span class="font-semibold text-gray-800">Mensagem ${item.step} enviada</span>
+                    </div>
+                    <div class="text-xs text-gray-500 font-medium bg-gray-50 px-2 py-1 rounded-md border border-gray-100 mr-2 shadow-sm">
+                        ${item.date} às ${item.time}
+                    </div>
+                    <svg class="chevron-icon w-4 h-4 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                `;
+
+                const content = document.createElement('div');
+                content.className = 'hidden px-4 pb-3 pt-2 border-t border-gray-100 bg-gray-50/50';
+                
+                const msgText = item.message ? item.message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'Conteúdo não disponível.';
+                
+                content.innerHTML = `
+                    <p class="text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Conteúdo da Mensagem:</p>
+                    <p class="text-gray-700 text-sm whitespace-pre-wrap break-words italic bg-white p-3 rounded-md border border-gray-200 shadow-inner">${msgText}</p>
+                `;
+
+                header.addEventListener('click', () => {
+                    const isHidden = content.classList.contains('hidden');
+                    const icon = header.querySelector('.chevron-icon');
+                    if (isHidden) {
+                        content.classList.remove('hidden');
+                        icon.classList.add('rotate-180');
+                    } else {
+                        content.classList.add('hidden');
+                        icon.classList.remove('rotate-180');
                     }
-                }
-            }
+                });
 
-            // Pega a mensagem salva para um passo específico
-            function getMessageForStep(stepNumber) {
-                return localStorage.getItem(`step_msg_${stepNumber}`) || defaultMessages[stepNumber] || "";
-            }
-
-            // Função para processar variáveis na mensagem
-            function processVariables(message) {
-                const now = new Date();
-                
-                // Formatação de data (Usa a do cliente importado se existir, senão usa a atual)
-                const dataFormatada = window.selectedClientDate || now.toLocaleDateString('pt-BR');
-                
-                // Formatação de hora (Usa a do cliente importado se existir, senão usa a atual)
-                const horaFormatada = window.selectedClientTime || now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-                // Mapeamento de variáveis
-                const variaveis = {
-                    '{{nome}}': nameInput.value.trim() || 'Cliente',
-                    '{{telefone}}': phoneInput.value.trim() || 'seu número',
-                    '{{empresa}}': companyInput.value.trim() || 'nossa empresa',
-                    '{{cidade}}': cityInput.value.trim() || 'nossa cidade',
-                    '{{data}}': dataFormatada,
-                    '{{hora}}': horaFormatada
-                };
-
-                // Substitui todas as ocorrências de cada variável
-                let messageProcessed = message;
-                for (const [key, value] of Object.entries(variaveis)) {
-                    // Usa regex com 'g' para substituir todas as ocorrências
-                    const regex = new RegExp(key.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1"), 'g');
-                    messageProcessed = messageProcessed.replace(regex, value);
-                }
-
-                return messageProcessed;
-            }
-
-            // Função para enviar mensagem via WhatsApp
-            function sendWhatsAppMessage(stepNumber) {
-                let phone = phoneInput.value.replace(/\D/g, ''); // Remove tudo que não é número
-                
-                if (!phone) {
-                    showToast("Por favor, insira o número do cliente primeiro.", true);
-                    phoneInput.focus();
-                    return;
-                }
-                
-                // Adiciona o código do país se não tiver (assumindo Brasil +55)
-                if (phone.length === 10 || phone.length === 11) {
-                    phone = '55' + phone;
-                }
-
-                const rawMessage = getMessageForStep(stepNumber);
-                const processedMessage = processVariables(rawMessage);
-                const encodedMessage = encodeURIComponent(processedMessage);
-                
-                // Abre o link do WhatsApp na mesma janela ou em nova aba dependendo do dispositivo
-                const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
-                window.open(whatsappUrl, '_blank');
-            }
-
-            // Lógica de Importação de JSON
-            importBtn.addEventListener('click', () => {
-                fileInput.click();
+                div.appendChild(header);
+                div.appendChild(content);
+                ui.historyList.appendChild(div);
             });
+        }
 
-            fileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
+        ui.phoneInput.addEventListener('input', () => {
+            if (!window.selectedClientId) renderHistory();
+        });
 
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    try {
-                        const data = JSON.parse(event.target.result);
-                        let clientsArray = [];
-                        
-                        // Verifica a estrutura do JSON (array direto ou dentro da chave "clientes")
-                        if (Array.isArray(data)) {
-                            clientsArray = data;
-                        } else if (data.clientes && Array.isArray(data.clientes)) {
-                            clientsArray = data.clientes;
-                        } else {
-                            throw new Error("Formato JSON inválido. Esperado array 'clientes'.");
-                        }
+        document.getElementById('import-json-btn').addEventListener('click', () => ui.fileInput.click());
 
-                        processImportedClients(clientsArray);
-                    } catch (error) {
-                        console.error("Erro ao ler JSON:", error);
-                        showToast("Erro ao importar JSON. Verifique o formato do arquivo.", true);
-                    }
-                    fileInput.value = ''; // Reseta o input para permitir nova importação do mesmo arquivo
-                };
-                reader.readAsText(file);
-            });
+        ui.fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-            function processImportedClients(clients) {
-                importedClients = clients.map(c => {
-                    // Extrai APENAS os campos solicitados, descartando qualquer outra informação do JSON
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    let clientsArray = Array.isArray(data) ? data : (data.clientes || []);
+
+                    if (clientsArray.length === 0) throw new Error("JSON Vazio");
+                    
+                    showToast(`Sincronizando ${clientsArray.length} clientes...`);
+                    await saveImportedClientsToCloud(clientsArray);
+                    
+                } catch (error) {
+                    console.error("Erro ao ler JSON:", error);
+                    showToast("Erro ao importar. Verifique o arquivo.", true);
+                }
+                ui.fileInput.value = ''; 
+            };
+            reader.readAsText(file);
+        });
+
+        async function saveImportedClientsToCloud(clients) {
+            if (!currentUserUid) return;
+            const clientsColRef = collection(db, 'artifacts', appIdentifier, 'users', currentUserUid, 'clients');
+            
+            let successCount = 0;
+            
+            // Loop para salvar cada cliente
+            for (const c of clients) {
+                try {
+                    const idOriginal = c.id || Math.random().toString(36).substr(2, 9);
                     const nome = c.nomeCliente || c.nome || '';
                     const contato = c.contato || c.telefone || c.phone || '';
                     const marca = c.nomeMarca || c.empresa || '';
                     const nicho = c.nicho || c.segmento || '';
                     
-                    // Extrai a data do formato do Firestore {seconds, nanoseconds} ou ISO
-                    let dataObj = new Date();
+                    let timestamp = Date.now();
                     if (c.createdAt && c.createdAt.seconds) {
-                        dataObj = new Date(c.createdAt.seconds * 1000);
+                        timestamp = c.createdAt.seconds * 1000;
                     } else if (c.createdAt) {
-                        dataObj = new Date(c.createdAt);
+                        timestamp = new Date(c.createdAt).getTime();
                     }
                     
-                    // Retorna um objeto limpo só com o necessário para a aplicação
-                    return {
-                        id: c.id || Math.random().toString(36).substr(2, 9),
-                        nome: nome,
+                    const docRef = doc(clientsColRef, idOriginal);
+                    await setDoc(docRef, {
+                        nome,
                         telefone: contato,
                         empresa: marca,
-                        nicho: nicho,
-                        dataOriginal: dataObj,
-                        dataFormatada: dataObj.toLocaleDateString('pt-BR'),
-                        horaFormatada: dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                    };
-                });
-
-                renderClientsList();
-                renderPagination();
-                
-                if (importedClients.length > 0) {
-                    // Atualiza o contador na interface
-                    countBadge.textContent = `${importedClients.length} contato${importedClients.length > 1 ? 's' : ''}`;
-                    countBadge.classList.remove('hidden');
-                    showToast(`${importedClients.length} clientes importados com sucesso!`);
-                } else {
-                    countBadge.classList.add('hidden');
-                    showToast("Nenhum cliente encontrado no arquivo.", true);
+                        nicho,
+                        timestamp,
+                        dataFormatada: new Date(timestamp).toLocaleDateString('pt-BR'),
+                        horaFormatada: new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                    }, { merge: true }); // Merge evita sobrescrever dados se já existir
+                    
+                    successCount++;
+                } catch (e) {
+                    console.error("Erro ao salvar cliente", c, e);
                 }
             }
+            
+            showToast(`${successCount} clientes salvos na nuvem com sucesso!`);
+            currentPage = 1; 
+        }
 
-            function renderClientsList() {
-                if (importedClients.length === 0) {
-                    clientsListContainer.classList.add('hidden');
-                    paginationControls.classList.add('hidden');
-                    return;
-                }
+        function updateClientsUI() {
+            if (dbClients.length > 0) {
+                ui.countBadge.textContent = `${dbClients.length} contato${dbClients.length > 1 ? 's' : ''}`;
+                ui.countBadge.classList.remove('hidden');
+            } else {
+                ui.countBadge.classList.add('hidden');
+            }
+            
+            renderClientsList();
+            renderPagination();
+        }
 
-                clientsListContainer.innerHTML = '';
-                clientsListContainer.classList.remove('hidden');
+        function renderClientsList() {
+            if (dbClients.length === 0) {
+                ui.clientsListContainer.classList.add('hidden');
+                ui.paginationControls.classList.add('hidden');
+                return;
+            }
 
-                // Lógica de fatia da array para a página atual
-                const startIndex = (currentPage - 1) * itemsPerPage;
-                const endIndex = startIndex + itemsPerPage;
-                const clientsToRender = importedClients.slice(startIndex, endIndex);
+            ui.clientsListContainer.innerHTML = '';
+            ui.clientsListContainer.classList.remove('hidden');
 
-                clientsToRender.forEach(client => {
-                    const card = document.createElement('div');
-                    
-                    // Verifica se este card é o que está atualmente selecionado
-                    const isSelected = window.selectedClientId === client.id;
-                    const baseClasses = 'w-full p-3 bg-white border rounded-xl shadow-sm cursor-pointer hover:border-whatsapp hover:shadow-md transition-all group select-none relative overflow-hidden';
-                    const selectedClasses = isSelected ? 'border-whatsapp bg-green-50 ring-1 ring-whatsapp' : 'border-gray-200';
-                    
-                    card.className = `${baseClasses} ${selectedClasses}`;
-                    card.dataset.id = client.id;
-                    
-                    const barColor = isSelected ? 'bg-whatsapp' : 'bg-gray-200';
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const clientsToRender = dbClients.slice(startIndex, startIndex + itemsPerPage);
 
-                    // Monta a string da empresa/nicho para exibição
-                    const empresaExibicao = client.empresa ? client.empresa : 'Sem marca';
-                    const nichoExibicao = client.nicho ? ` (${client.nicho})` : '';
+            clientsToRender.forEach(client => {
+                const card = document.createElement('div');
+                const isSelected = window.selectedClientId === client.id;
+                const baseClasses = 'w-full p-3 bg-white border rounded-xl shadow-sm cursor-pointer hover:border-whatsapp hover:shadow-md transition-all group select-none relative overflow-hidden';
+                const selectedClasses = isSelected ? 'border-whatsapp bg-green-50 ring-1 ring-whatsapp' : 'border-gray-200';
+                
+                card.className = `${baseClasses} ${selectedClasses}`;
+                const barColor = isSelected ? 'bg-whatsapp' : 'bg-gray-200';
 
-                    card.innerHTML = `
-                        <div class="absolute top-0 left-0 w-1 h-full ${barColor} group-hover:bg-whatsapp transition-colors status-bar"></div>
-                        <div class="pl-2">
-                            <div class="font-semibold text-gray-800 truncate group-hover:text-whatsapp transition-colors text-sm" title="${client.nome}">${client.nome || 'Nome Indisponível'}</div>
-                            <div class="text-xs text-gray-500 mt-0.5 truncate" title="${client.empresa}${nichoExibicao}">${empresaExibicao}${nichoExibicao}</div>
-                            <div class="text-[11px] text-gray-400 mt-2 flex justify-between items-center border-t border-gray-50 pt-2">
-                                <span class="font-medium text-gray-600 flex items-center gap-1">
-                                    <svg class="w-3 h-3 text-whatsapp" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-                                    ${client.telefone || 'Sem contato'}
-                                </span>
-                                <span>${client.dataFormatada}</span>
-                            </div>
+                const empresaExibicao = client.empresa ? client.empresa : 'Sem marca';
+                const nichoExibicao = client.nicho ? ` (${client.nicho})` : '';
+
+                card.innerHTML = `
+                    <div class="absolute top-0 left-0 w-1 h-full ${barColor} group-hover:bg-whatsapp transition-colors"></div>
+                    <div class="pl-2">
+                        <div class="font-semibold text-gray-800 truncate group-hover:text-whatsapp transition-colors text-sm" title="${client.nome}">${client.nome || 'Nome Indisponível'}</div>
+                        <div class="text-xs text-gray-500 mt-0.5 truncate" title="${client.empresa}${nichoExibicao}">${empresaExibicao}${nichoExibicao}</div>
+                        <div class="text-[11px] text-gray-400 mt-2 flex justify-between items-center border-t border-gray-50 pt-2">
+                            <span class="font-medium text-gray-600 flex items-center gap-1">
+                                <svg class="w-3 h-3 text-whatsapp" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                                ${client.telefone || 'Sem contato'}
+                            </span>
+                            <span>${client.dataFormatada}</span>
                         </div>
-                    `;
+                    </div>
+                `;
 
-                    card.addEventListener('click', () => {
-                        // Preenche o formulário principal
-                        nameInput.value = client.nome;
-                        phoneInput.value = client.telefone;
-                        companyInput.value = client.empresa;
-                        
-                        // Atualiza as variáveis globais
-                        window.selectedClientDate = client.dataFormatada;
-                        window.selectedClientTime = client.horaFormatada;
-                        window.selectedClientId = client.id;
-
-                        // Re-renderiza a lista para aplicar as classes visuais corretas
-                        renderClientsList();
-
-                        showToast(`${client.nome.split(' ')[0]} selecionado!`);
-                        
-                        // Opcional: Rolar até a área dos botões no mobile se a lista estiver muito grande
-                        if(window.innerWidth < 768) {
-                           document.getElementById('steps-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
-                    });
+                card.addEventListener('click', () => {
+                    ui.nameInput.value = client.nome;
+                    ui.phoneInput.value = client.telefone;
+                    ui.companyInput.value = client.empresa;
+                    ui.cityInput.value = client.nicho; // Nicho vira 'cidade' na UI conforme seu uso
                     
-                    clientsListContainer.appendChild(card);
-                });
-            }
+                    window.selectedClientDate = client.dataFormatada;
+                    window.selectedClientTime = client.horaFormatada;
+                    window.selectedClientId = client.id;
 
-            function renderPagination() {
-                const totalPages = Math.ceil(importedClients.length / itemsPerPage);
-                
-                if (totalPages <= 1) {
-                    paginationControls.classList.add('hidden');
-                    return;
-                }
-
-                paginationControls.innerHTML = '';
-                paginationControls.classList.remove('hidden');
-
-                // Botão Anterior
-                const prevBtn = document.createElement('button');
-                prevBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>';
-                prevBtn.className = `flex items-center justify-center w-8 h-8 rounded-md border ${currentPage === 1 ? 'text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50' : 'text-gray-600 border-gray-300 hover:bg-gray-100 bg-white'}`;
-                prevBtn.disabled = currentPage === 1;
-                prevBtn.addEventListener('click', () => {
-                    if (currentPage > 1) {
-                        currentPage--;
-                        renderClientsList();
-                        renderPagination();
-                    }
-                });
-                paginationControls.appendChild(prevBtn);
-
-                // Lógica de páginas com reticências para muitas páginas
-                const maxVisiblePages = 5;
-                let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
-                if (endPage - startPage + 1 < maxVisiblePages) {
-                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                }
-
-                if (startPage > 1) {
-                    paginationControls.appendChild(createPageButton(1));
-                    if (startPage > 2) paginationControls.appendChild(createEllipsis());
-                }
-
-                for (let i = startPage; i <= endPage; i++) {
-                    paginationControls.appendChild(createPageButton(i));
-                }
-
-                if (endPage < totalPages) {
-                    if (endPage < totalPages - 1) paginationControls.appendChild(createEllipsis());
-                    paginationControls.appendChild(createPageButton(totalPages));
-                }
-
-                // Botão Próximo
-                const nextBtn = document.createElement('button');
-                nextBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>';
-                nextBtn.className = `flex items-center justify-center w-8 h-8 rounded-md border ${currentPage === totalPages ? 'text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50' : 'text-gray-600 border-gray-300 hover:bg-gray-100 bg-white'}`;
-                nextBtn.disabled = currentPage === totalPages;
-                nextBtn.addEventListener('click', () => {
-                    if (currentPage < totalPages) {
-                        currentPage++;
-                        renderClientsList();
-                        renderPagination();
-                    }
-                });
-                paginationControls.appendChild(nextBtn);
-            }
-
-            function createPageButton(pageNumber) {
-                const btn = document.createElement('button');
-                btn.textContent = pageNumber;
-                
-                if (currentPage === pageNumber) {
-                    btn.className = 'flex items-center justify-center w-8 h-8 rounded-md border border-whatsapp bg-whatsapp text-white font-semibold text-sm shadow-sm';
-                } else {
-                    btn.className = 'flex items-center justify-center w-8 h-8 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm transition-colors';
-                }
-                
-                btn.addEventListener('click', () => {
-                    currentPage = pageNumber;
                     renderClientsList();
-                    renderPagination();
+                    renderHistory();
+                    
+                    if(window.innerWidth < 768) {
+                       ui.container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 });
-                return btn;
+                
+                ui.clientsListContainer.appendChild(card);
+            });
+        }
+
+        function renderPagination() {
+            const totalPages = Math.ceil(dbClients.length / itemsPerPage);
+            if (totalPages <= 1) {
+                ui.paginationControls.classList.add('hidden');
+                return;
             }
 
-            function createEllipsis() {
+            ui.paginationControls.innerHTML = '';
+            ui.paginationControls.classList.remove('hidden');
+
+            const prevBtn = document.createElement('button');
+            prevBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>';
+            prevBtn.className = `flex items-center justify-center w-8 h-8 rounded-md border ${currentPage === 1 ? 'text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50' : 'text-gray-600 border-gray-300 hover:bg-gray-100 bg-white'}`;
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => { if (currentPage > 1) { currentPage--; updateClientsUI(); } };
+            ui.paginationControls.appendChild(prevBtn);
+
+            const maxPages = 5;
+            let startP = Math.max(1, currentPage - Math.floor(maxPages / 2));
+            let endP = Math.min(totalPages, startP + maxPages - 1);
+            if (endP - startP + 1 < maxPages) startP = Math.max(1, endP - maxPages + 1);
+
+            if (startP > 1) ui.paginationControls.appendChild(createPageBtn(1));
+            if (startP > 2) ui.paginationControls.appendChild(createEllipsis());
+
+            for (let i = startP; i <= endP; i++) ui.paginationControls.appendChild(createPageBtn(i));
+
+            if (endP < totalPages) {
+                if (endP < totalPages - 1) ui.paginationControls.appendChild(createEllipsis());
+                ui.paginationControls.appendChild(createPageBtn(totalPages));
+            }
+
+            const nextBtn = document.createElement('button');
+            nextBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>';
+            nextBtn.className = `flex items-center justify-center w-8 h-8 rounded-md border ${currentPage === totalPages ? 'text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50' : 'text-gray-600 border-gray-300 hover:bg-gray-100 bg-white'}`;
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; updateClientsUI(); } };
+            ui.paginationControls.appendChild(nextBtn);
+        }
+
+        function createPageBtn(num) {
+            const btn = document.createElement('button');
+            btn.textContent = num;
+            btn.className = num === currentPage 
+                ? 'flex items-center justify-center w-8 h-8 rounded-md border border-whatsapp bg-whatsapp text-white font-semibold text-sm shadow-sm'
+                : 'flex items-center justify-center w-8 h-8 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm transition-colors';
+            btn.onclick = () => { currentPage = num; updateClientsUI(); };
+            return btn;
+        }
+
+        function createEllipsis() {
+            const span = document.createElement('span');
+            span.textContent = '...'; span.className = 'px-1 text-gray-400 text-sm';
+            return span;
+        }
+
+        function openEditModal(stepNumber) {
+            ui.modalTitle.textContent = `Editar Mensagem - Passo ${stepNumber}`;
+            ui.messageTextarea.value = getMessageForStep(stepNumber);
+            ui.currentEditingStepInput.value = stepNumber;
+            ui.modal.classList.remove('hidden');
+            ui.modal.classList.add('flex');
+            setTimeout(() => ui.messageTextarea.focus(), 100);
+        }
+
+        function closeModal() {
+            ui.modal.classList.add('hidden');
+            ui.modal.classList.remove('flex');
+            ui.currentEditingStepInput.value = '';
+        }
+
+        async function saveMessageToCloud() {
+            if (!currentUserUid) return;
+            const stepNumber = ui.currentEditingStepInput.value;
+            const newMessage = ui.messageTextarea.value.trim();
+            
+            if (stepNumber && newMessage !== "") {
+                try {
+                    const docRef = doc(db, 'artifacts', appIdentifier, 'users', currentUserUid, 'config', 'templates');
+                    await setDoc(docRef, { [stepNumber]: newMessage }, { merge: true });
+                    
+                    closeModal();
+                    showToast(`Mensagem ${stepNumber} salva na nuvem!`);
+                } catch (error) {
+                    console.error("Erro ao salvar template:", error);
+                    showToast("Erro ao salvar na nuvem.", true);
+                }
+            } else if (newMessage === "") {
+                showToast("A mensagem não pode estar vazia.", true);
+            }
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = msg;
+            const icon = document.getElementById('toast-icon');
+            
+            if (isError) {
+                toast.classList.replace('bg-gray-800', 'bg-red-600');
+                icon.outerHTML = `<svg class="w-5 h-5 text-white" id="toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+            } else {
+                toast.classList.replace('bg-red-600', 'bg-gray-800');
+                icon.outerHTML = `<svg class="w-5 h-5 text-green-400" id="toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        function createBoxes() {
+            ui.container.innerHTML = '';
+            for (let i = 1; i <= totalSteps; i++) {
+                const box = document.createElement('div');
+                box.className = `
+                    step-box relative w-full aspect-square flex items-center justify-center 
+                    border border-gray-300 rounded-xl text-2xl md:text-3xl font-semibold text-gray-700
+                    cursor-pointer select-none bg-white hover:border-whatsapp hover:text-whatsapp hover:shadow-md
+                `;
+                box.classList.add('group');
+                
                 const span = document.createElement('span');
-                span.textContent = '...';
-                span.className = 'px-1 text-gray-400 text-sm';
-                return span;
-            }
+                span.textContent = i;
+                box.appendChild(span);
 
-            // Funções do Modal
-            function openEditModal(stepNumber) {
-                modalTitle.textContent = `Editar Mensagem - Passo ${stepNumber}`;
-                messageTextarea.value = getMessageForStep(stepNumber);
-                currentEditingStepInput.value = stepNumber;
+                const editIcon = document.createElement('div');
+                editIcon.className = 'absolute top-1 right-1 text-gray-300 hover:text-gray-600 opacity-50 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1';
+                editIcon.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>`;
+                box.appendChild(editIcon);
+
+                let pressTimer;
+                let isDragging = false;
                 
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-                
-                // Foca no textarea assim que abrir
-                setTimeout(() => messageTextarea.focus(), 100);
-            }
+                box.addEventListener('touchstart', (e) => {
+                    isDragging = false;
+                    pressTimer = window.setTimeout(() => { openEditModal(i); e.preventDefault(); }, 500);
+                }, { passive: true });
+                box.addEventListener('touchmove', () => { isDragging = true; clearTimeout(pressTimer); }, { passive: true });
+                box.addEventListener('touchend', () => clearTimeout(pressTimer));
 
-            function closeModal() {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-                currentEditingStepInput.value = '';
-            }
-
-            function saveMessage() {
-                const stepNumber = currentEditingStepInput.value;
-                const newMessage = messageTextarea.value.trim();
-                
-                if (stepNumber && newMessage !== "") {
-                    localStorage.setItem(`step_msg_${stepNumber}`, newMessage);
-                    closeModal();
-                    showToast(`Mensagem do Passo ${stepNumber} salva!`);
-                } else if (newMessage === "") {
-                    showToast("A mensagem não pode estar vazia.", true);
-                }
-            }
-
-            // UI Feedback (Toast)
-            function showToast(msg, isError = false) {
-                toastMessage.textContent = msg;
-                
-                if (isError) {
-                    toast.classList.remove('bg-gray-800');
-                    toast.classList.add('bg-red-600');
-                    toast.querySelector('svg').outerHTML = `<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
-                } else {
-                    toast.classList.add('bg-gray-800');
-                    toast.classList.remove('bg-red-600');
-                    toast.querySelector('svg').outerHTML = `<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
-                }
-
-                toast.classList.remove('translate-y-20', 'opacity-0');
-                
-                setTimeout(() => {
-                    toast.classList.add('translate-y-20', 'opacity-0');
-                }, 3000);
-            }
-
-            // Funcionalidade para copiar variável clicando nela no modal
-            const variableTags = modal.querySelectorAll('code');
-            variableTags.forEach(tag => {
-                tag.style.cursor = 'pointer';
-                tag.addEventListener('click', () => {
-                    const textToInsert = tag.textContent;
-                    
-                    // Insere o texto no textarea na posição do cursor
-                    const startPos = messageTextarea.selectionStart;
-                    const endPos = messageTextarea.selectionEnd;
-                    const currentText = messageTextarea.value;
-                    
-                    messageTextarea.value = currentText.substring(0, startPos) + textToInsert + currentText.substring(endPos);
-                    
-                    // Retorna o foco pro textarea e posiciona o cursor após a variável inserida
-                    messageTextarea.focus();
-                    messageTextarea.selectionStart = startPos + textToInsert.length;
-                    messageTextarea.selectionEnd = startPos + textToInsert.length;
-                    
-                    showToast(`Variável ${textToInsert} adicionada!`);
+                box.addEventListener('mousedown', (e) => {
+                    if (e.button === 0) pressTimer = window.setTimeout(() => openEditModal(i), 500);
                 });
-            });
+                box.addEventListener('mouseup', () => clearTimeout(pressTimer));
+                box.addEventListener('mouseleave', () => clearTimeout(pressTimer));
 
-            // Criação dos botões de passo
-            function createBoxes() {
-                container.innerHTML = '';
-                for (let i = 1; i <= totalSteps; i++) {
-                    const box = document.createElement('div');
-                    
-                    box.className = `
-                        step-box relative w-full aspect-square 
-                        flex items-center justify-center 
-                        border border-gray-300 rounded-xl 
-                        text-2xl md:text-3xl font-semibold text-gray-700
-                        cursor-pointer select-none bg-white
-                        hover:border-whatsapp hover:text-whatsapp hover:shadow-md
-                        active:bg-gray-100
-                    `;
-                    
-                    const numberSpan = document.createElement('span');
-                    numberSpan.textContent = i;
-                    box.appendChild(numberSpan);
+                box.addEventListener('click', () => {
+                    if (ui.modal.classList.contains('hidden')) sendWhatsAppMessage(i);
+                });
 
-                    // Adiciona um pequeno ícone de edição (visível principalmente no desktop no hover, ou sempre sutil)
-                    const editIcon = document.createElement('div');
-                    editIcon.className = 'absolute top-1 right-1 text-gray-300 hover:text-gray-600 opacity-50 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1';
-                    editIcon.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>`;
-                    box.appendChild(editIcon);
-                    box.classList.add('group'); // Necessário para o group-hover do icone
+                box.addEventListener('contextmenu', (e) => { e.preventDefault(); openEditModal(i); });
+                editIcon.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(i); });
 
-                    // --- Eventos de Mouse/Touch para lidar com Clique vs Clique Longo ---
-                    
-                    box.addEventListener('touchstart', (e) => {
-                        isDragging = false;
-                        pressTimer = window.setTimeout(() => {
-                            // É um clique longo! Edita a mensagem.
-                            openEditModal(i);
-                            // Previne o clique normal de acontecer ao soltar
-                            e.preventDefault(); 
-                        }, LONG_PRESS_DURATION);
-                    }, { passive: true });
-
-                    box.addEventListener('touchmove', () => {
-                        isDragging = true;
-                        clearTimeout(pressTimer);
-                    }, { passive: true });
-
-                    box.addEventListener('touchend', (e) => {
-                        clearTimeout(pressTimer);
-                        if (!isDragging) {
-                            // Se soltou rápido, é um clique normal. Envia mensagem.
-                            // Nota: se o preventDefault() foi chamado no setTimeout, isso pode não rodar dependendo do browser, 
-                            // mas o click normal geralmente é disparado de qualquer forma no touchend.
-                            // O event 'click' lidará com isso de forma mais confiável abaixo.
-                        }
-                    });
-
-                    // Para mouse (Desktop)
-                    box.addEventListener('mousedown', (e) => {
-                        if (e.button !== 0) return; // Apenas botão esquerdo
-                        pressTimer = window.setTimeout(() => {
-                            openEditModal(i);
-                        }, LONG_PRESS_DURATION);
-                    });
-
-                    box.addEventListener('mouseup', () => clearTimeout(pressTimer));
-                    box.addEventListener('mouseleave', () => clearTimeout(pressTimer));
-
-                    // Clique normal (Enviar mensagem)
-                    box.addEventListener('click', (e) => {
-                        // Se não foi um clique longo (que abriu o modal)
-                        if (modal.classList.contains('hidden')) {
-                            sendWhatsAppMessage(i);
-                        }
-                    });
-
-                    // Atalho explícito para edição (Clique com botão direito ou clique no ícone)
-                    box.addEventListener('contextmenu', (e) => {
-                        e.preventDefault();
-                        openEditModal(i);
-                    });
-                    
-                    editIcon.addEventListener('click', (e) => {
-                        e.stopPropagation(); // Evita acionar o envio de mensagem
-                        openEditModal(i);
-                    });
-
-                    container.appendChild(box);
-                }
+                ui.container.appendChild(box);
             }
+        }
 
-            // Event Listeners do Modal
-            closeModalBtn.addEventListener('click', closeModal);
-            cancelEditBtn.addEventListener('click', closeModal);
-            modalBackdrop.addEventListener('click', closeModal);
-            saveEditBtn.addEventListener('click', saveMessage);
-
-            // Fechar modal com tecla ESC
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
-                    closeModal();
-                }
+        // Variáveis no modal
+        document.querySelectorAll('code').forEach(tag => {
+            tag.style.cursor = 'pointer';
+            tag.addEventListener('click', () => {
+                const text = tag.textContent;
+                const startPos = ui.messageTextarea.selectionStart;
+                const endPos = ui.messageTextarea.selectionEnd;
+                const currentText = ui.messageTextarea.value;
+                
+                ui.messageTextarea.value = currentText.substring(0, startPos) + text + currentText.substring(endPos);
+                ui.messageTextarea.focus();
+                ui.messageTextarea.selectionStart = startPos + text.length;
+                ui.messageTextarea.selectionEnd = startPos + text.length;
+                showToast(`Variável adicionada!`);
             });
-
-            // Inicialização
-            initializeStorage();
-            createBoxes();
         });
+
+        document.getElementById('close-modal-btn').addEventListener('click', closeModal);
+        document.getElementById('cancel-edit-btn').addEventListener('click', closeModal);
+        document.getElementById('modal-backdrop').addEventListener('click', closeModal);
+        document.getElementById('save-edit-btn').addEventListener('click', saveMessageToCloud);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !ui.modal.classList.contains('hidden')) closeModal();
+        });
+
+        // Chama a inicialização
+        initializeAppLogic();
+
     </script>
 </body>
 </html>
