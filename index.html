@@ -870,7 +870,16 @@
             reader.onload = async function(event) {
                 try {
                     const data = JSON.parse(event.target.result);
-                    let clientsArray = Array.isArray(data) ? data : (data.clientes || []);
+                    let clientsArray = [];
+
+                    // Verifica se é um array ou objeto com propriedade "clientes"
+                    if (Array.isArray(data)) {
+                        clientsArray = data;
+                    } else if (data.clientes && Array.isArray(data.clientes)) {
+                        clientsArray = data.clientes;
+                    } else {
+                        throw new Error("Formato JSON inválido. Esperado array ou objeto com propriedade 'clientes'");
+                    }
 
                     if (clientsArray.length === 0) throw new Error("JSON Vazio");
                     
@@ -904,10 +913,22 @@
             
             for (const c of clients) {
                 try {
-                    const nome = c.nomeCliente || c.nome || '';
-                    const contato = (c.contato || c.telefone || c.phone || '').replace(/\D/g, '');
-                    const marca = c.nomeMarca || c.empresa || '';
-                    const nicho = c.nicho || c.segmento || '';
+                    // ========== EXTRAIR APENAS OS CAMPOS NECESSÁRIOS ==========
+                    
+                    // Nome: tenta nomeCliente, depois nome
+                    const nome = (c.nomeCliente || c.nome || '').trim();
+                    
+                    // Contato/Telefone: tenta contato, depois telefone, depois phone
+                    const contatoBruto = (c.contato || c.telefone || c.phone || '');
+                    const contato = contatoBruto.replace(/\D/g, ''); // Remove tudo que não é número
+                    
+                    // Marca/Empresa: tenta nomeMarca, depois empresa
+                    const marca = (c.nomeMarca || c.empresa || '').trim();
+                    
+                    // Nicho/Segmento: tenta nicho, depois segmento
+                    const nicho = (c.nicho || c.segmento || '').trim();
+                    
+                    // ========== FIM EXTRAÇÃO DE CAMPOS ==========
                     
                     // Pular se não tiver telefone
                     if (!contato) {
@@ -927,23 +948,46 @@
                     // 1. Tenta extrair do campo 'data_criacao' (formato: "DD/MM/AAAA, HH:MM")
                     if (c.data_criacao) {
                         try {
-                            const parts = c.data_criacao.split(',');
-                            if (parts.length === 2) {
-                                const datePart = parts[0].trim(); // "22/07/2026"
-                                const timePart = parts[1].trim(); // "23:20"
-                                
-                                const [day, month, year] = datePart.split('/');
-                                const [hours, minutes] = timePart.split(':');
-                                
-                                // Criar data no formato ISO (mês é 0-indexado em JS)
-                                const parsedDate = new Date(
-                                    parseInt(year), 
-                                    parseInt(month) - 1, 
-                                    parseInt(day), 
-                                    parseInt(hours) || 0, 
-                                    parseInt(minutes) || 0
-                                );
-                                
+                            const dataCriacao = c.data_criacao.toString().trim();
+                            
+                            // Formato: "22/07/2026, 23:20"
+                            if (dataCriacao.includes(',')) {
+                                const parts = dataCriacao.split(',');
+                                if (parts.length === 2) {
+                                    const datePart = parts[0].trim();
+                                    const timePart = parts[1].trim();
+                                    
+                                    const dateParts = datePart.split('/');
+                                    if (dateParts.length === 3) {
+                                        const [day, month, year] = dateParts;
+                                        const timeParts = timePart.split(':');
+                                        const hours = timeParts[0] || '0';
+                                        const minutes = timeParts[1] || '0';
+                                        
+                                        const parsedDate = new Date(
+                                            parseInt(year), 
+                                            parseInt(month) - 1, 
+                                            parseInt(day), 
+                                            parseInt(hours), 
+                                            parseInt(minutes)
+                                        );
+                                        
+                                        if (!isNaN(parsedDate.getTime())) {
+                                            timestamp = parsedDate.getTime();
+                                        }
+                                    }
+                                }
+                            }
+                            // Formato: "2026-03-13" (ISO date)
+                            else if (dataCriacao.includes('-')) {
+                                const parsedDate = new Date(dataCriacao + 'T00:00:00');
+                                if (!isNaN(parsedDate.getTime())) {
+                                    timestamp = parsedDate.getTime();
+                                }
+                            }
+                            // Formato: "2026-03-13T07:45:00" (ISO datetime)
+                            else {
+                                const parsedDate = new Date(dataCriacao);
                                 if (!isNaN(parsedDate.getTime())) {
                                     timestamp = parsedDate.getTime();
                                 }
@@ -975,8 +1019,16 @@
                         }
                     }
                     
-                    // 4. Tenta do campo 'timestamp' se existir
-                    if (!c.data_criacao && !c.sortOrder && !c.createdAt && c.timestamp) {
+                    // 4. Tenta do campo 'data' (formato: "2026-03-13")
+                    if (!c.data_criacao && !c.sortOrder && !c.createdAt && c.data) {
+                        const parsedDate = new Date(c.data + 'T00:00:00');
+                        if (!isNaN(parsedDate.getTime())) {
+                            timestamp = parsedDate.getTime();
+                        }
+                    }
+                    
+                    // 5. Tenta do campo 'timestamp' se existir
+                    if (!c.data_criacao && !c.sortOrder && !c.createdAt && !c.data && c.timestamp) {
                         const tsNum = parseInt(c.timestamp);
                         if (!isNaN(tsNum) && tsNum > 0) {
                             timestamp = tsNum;
