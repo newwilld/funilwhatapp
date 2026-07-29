@@ -75,7 +75,6 @@
             background: #94a3b8; 
         }
 
-        /* Spinner de Loading */
         .loader {
             border: 3px solid #f3f3f3;
             border-top: 3px solid #25D366;
@@ -93,8 +92,69 @@
 
 <body class="flex items-center justify-center p-4 antialiased text-gray-800">
 
+    <!-- Modal de Login/Registro -->
+    <div id="auth-modal" class="fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-60">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md m-4 p-8 animate-[slideUp_0.3s_ease-out]">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-whatsapp" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                </div>
+                <h2 id="auth-title" class="text-2xl font-bold text-gray-900 mb-1">Acessar Funil</h2>
+                <p class="text-sm text-gray-500">Seus dados sincronizados na nuvem</p>
+            </div>
+
+            <form id="auth-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input 
+                        type="email" 
+                        id="auth-email" 
+                        required 
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-whatsapp focus:border-whatsapp outline-none transition-shadow"
+                        placeholder="seu@email.com"
+                    >
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+                    <input 
+                        type="password" 
+                        id="auth-password" 
+                        required 
+                        minlength="6"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-whatsapp focus:border-whatsapp outline-none transition-shadow"
+                        placeholder="Mínimo 6 caracteres"
+                    >
+                </div>
+
+                <div id="auth-error" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm"></div>
+
+                <button 
+                    type="submit" 
+                    id="auth-submit-btn"
+                    class="w-full bg-whatsapp text-white py-3 rounded-lg font-semibold hover:bg-whatsapp-dark transition-colors shadow-md flex items-center justify-center gap-2"
+                >
+                    <span id="auth-btn-text">Entrar</span>
+                    <div id="auth-spinner" class="hidden loader"></div>
+                </button>
+
+                <div class="text-center">
+                    <button 
+                        type="button" 
+                        id="toggle-auth-mode" 
+                        class="text-sm text-whatsapp hover:text-whatsapp-dark font-medium transition-colors"
+                    >
+                        Criar nova conta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Tela de Loading Inicial do Firebase -->
-    <div id="firebase-loading" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center">
+    <div id="firebase-loading" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center hidden">
         <div class="loader mb-4 w-12 h-12 border-4"></div>
         <p class="text-gray-600 font-medium">Conectando à nuvem...</p>
     </div>
@@ -252,11 +312,25 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
+            onAuthStateChanged,
+            signOut
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            collection, 
+            onSnapshot, 
+            addDoc, 
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Configuração do Firebase
-        const userProvidedConfig = {
+        const firebaseConfig = {
             apiKey: "AIzaSyBFgUTw6mkKBnhZDuM6NQoAHi7SrGqrcEs",
             authDomain: "funilwhats.firebaseapp.com",
             projectId: "funilwhats",
@@ -265,14 +339,11 @@
             appId: "1:771806585364:web:d3a60e85e9070102413d01",
             measurementId: "G-677E85FTF7"
         };
-        
-        // Permite rodar no ambiente nativo (se existir as variáveis globais) ou com a config do usuário
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : userProvidedConfig;
-        const appIdentifier = typeof __app_id !== 'undefined' ? __app_id : 'funilwhats-app';
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const appIdentifier = 'funilwhats-app';
 
         // Estado Global
         let currentUserUid = null;
@@ -284,7 +355,6 @@
         window.selectedClientTime = null;
         window.selectedClientId = null;
         
-        // Paginação
         let currentPage = 1;
         const itemsPerPage = 15;
         const totalSteps = 8;
@@ -292,6 +362,16 @@
         // Elementos DOM
         const ui = {
             loadingScreen: document.getElementById('firebase-loading'),
+            authModal: document.getElementById('auth-modal'),
+            authForm: document.getElementById('auth-form'),
+            authEmail: document.getElementById('auth-email'),
+            authPassword: document.getElementById('auth-password'),
+            authError: document.getElementById('auth-error'),
+            authSubmitBtn: document.getElementById('auth-submit-btn'),
+            authBtnText: document.getElementById('auth-btn-text'),
+            authSpinner: document.getElementById('auth-spinner'),
+            authTitle: document.getElementById('auth-title'),
+            toggleAuthMode: document.getElementById('toggle-auth-mode'),
             container: document.getElementById('steps-container'),
             phoneInput: document.getElementById('client-phone'),
             nameInput: document.getElementById('client-name'),
@@ -321,64 +401,184 @@
             8: "Feliz aniversário {{nome}}! A {{empresa}} preparou um presente especial: 20% de desconto na sua próxima compra."
         };
 
-        // Inicialização Principal
-        async function initializeAppLogic() {
+        let isLoginMode = true;
+
+        // Alternar entre Login e Registro
+        ui.toggleAuthMode.addEventListener('click', (e) => {
+            e.preventDefault();
+            isLoginMode = !isLoginMode;
+            
+            if (isLoginMode) {
+                ui.authTitle.textContent = 'Acessar Funil';
+                ui.authBtnText.textContent = 'Entrar';
+                ui.toggleAuthMode.textContent = 'Criar nova conta';
+            } else {
+                ui.authTitle.textContent = 'Criar Conta';
+                ui.authBtnText.textContent = 'Cadastrar';
+                ui.toggleAuthMode.textContent = 'Já tenho conta';
+            }
+            
+            ui.authError.classList.add('hidden');
+        });
+
+        // Processar formulário de autenticação
+        ui.authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = ui.authEmail.value.trim();
+            const password = ui.authPassword.value.trim();
+            
+            if (!email || !password) {
+                showAuthError('Preencha todos os campos');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showAuthError('Senha deve ter no mínimo 6 caracteres');
+                return;
+            }
+            
+            // Mostrar loading
+            ui.authBtnText.classList.add('hidden');
+            ui.authSpinner.classList.remove('hidden');
+            ui.authSubmitBtn.disabled = true;
+            ui.authError.classList.add('hidden');
+            
             try {
-                if (typeof __initial_auth_token !== 'undefined') {
-                    await signInWithCustomToken(auth, __initial_auth_token);
+                if (isLoginMode) {
+                    await signInWithEmailAndPassword(auth, email, password);
                 } else {
-                    await signInAnonymously(auth);
+                    await createUserWithEmailAndPassword(auth, email, password);
+                }
+                // Se chegou aqui, o onAuthStateChanged vai cuidar do resto
+            } catch (error) {
+                let errorMessage = 'Erro ao processar solicitação';
+                
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage = 'Este email já está cadastrado';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Email inválido';
+                        break;
+                    case 'auth/user-not-found':
+                        errorMessage = 'Usuário não encontrado';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessage = 'Senha incorreta';
+                        break;
+                    case 'auth/invalid-credential':
+                        errorMessage = 'Email ou senha inválidos';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = 'Muitas tentativas. Tente novamente mais tarde';
+                        break;
+                    default:
+                        errorMessage = error.message;
                 }
                 
-                currentUserUid = auth.currentUser.uid;
+                showAuthError(errorMessage);
+            } finally {
+                ui.authBtnText.classList.remove('hidden');
+                ui.authSpinner.classList.add('hidden');
+                ui.authSubmitBtn.disabled = false;
+            }
+        });
+
+        function showAuthError(message) {
+            ui.authError.textContent = message;
+            ui.authError.classList.remove('hidden');
+        }
+
+        // Adicionar botão de logout no header
+        function addLogoutButton() {
+            const headerDiv = document.querySelector('.text-center.pt-8');
+            if (!headerDiv) return;
+            
+            // Remove botão existente se houver
+            const existingBtn = document.getElementById('logout-btn');
+            if (existingBtn) existingBtn.remove();
+            
+            const logoutBtn = document.createElement('button');
+            logoutBtn.id = 'logout-btn';
+            logoutBtn.className = 'absolute top-4 left-4 flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded-full border border-gray-200 hover:bg-gray-200 transition-colors';
+            logoutBtn.title = 'Sair';
+            logoutBtn.innerHTML = `
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+                Sair
+            `;
+            
+            logoutBtn.addEventListener('click', async () => {
+                try {
+                    await signOut(auth);
+                } catch (error) {
+                    console.error('Erro ao fazer logout:', error);
+                }
+            });
+            
+            headerDiv.appendChild(logoutBtn);
+        }
+
+        // Observer de autenticação
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // Usuário está logado
+                currentUserUid = user.uid;
+                ui.authModal.classList.add('hidden');
+                ui.loadingScreen.classList.remove('hidden');
                 
-                // Configura Listeners do Firestore
                 setupFirestoreListeners();
-                
-                // Cria as caixas numéricas
                 createBoxes();
+                addLogoutButton();
                 
-                // Remove tela de loading
+                setTimeout(() => {
+                    ui.loadingScreen.classList.add('hidden');
+                }, 500);
+                
+                console.log('Usuário logado:', user.email, 'UID:', user.uid);
+            } else {
+                // Usuário não está logado
+                currentUserUid = null;
+                ui.authModal.classList.remove('hidden');
                 ui.loadingScreen.classList.add('hidden');
                 
-            } catch (error) {
-                console.error("Erro de Autenticação Firebase:", error);
-                showToast("Erro ao conectar na nuvem.", true);
+                // Limpar dados da UI
+                ui.container.innerHTML = '';
+                ui.clientsListContainer.classList.add('hidden');
+                ui.countBadge.classList.add('hidden');
+                ui.paginationControls.classList.add('hidden');
+                ui.historyWrapper.classList.add('hidden');
+                
+                const logoutBtn = document.getElementById('logout-btn');
+                if (logoutBtn) logoutBtn.remove();
             }
-        }
+        });
 
         function setupFirestoreListeners() {
             if (!currentUserUid) return;
 
-            // 1. Ouvindo Templates (Config)
             const templatesDocRef = doc(db, 'artifacts', appIdentifier, 'users', currentUserUid, 'config', 'templates');
             onSnapshot(templatesDocRef, (snapshot) => {
                 if (snapshot.exists()) {
                     dbTemplates = snapshot.data();
                 } else {
-                    // Salva o padrão se não existir
                     setDoc(templatesDocRef, defaultMessages, { merge: true });
                     dbTemplates = { ...defaultMessages };
                 }
             }, (error) => console.error("Erro Templates Snapshot:", error));
 
-            // 2. Ouvindo Clientes Importados
             const clientsColRef = collection(db, 'artifacts', appIdentifier, 'users', currentUserUid, 'clients');
             onSnapshot(clientsColRef, (snapshot) => {
                 dbClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
-                // Ordena por data (mais recentes primeiro)
                 dbClients.sort((a, b) => b.timestamp - a.timestamp);
-                
                 updateClientsUI();
             }, (error) => console.error("Erro Clients Snapshot:", error));
 
-            // 3. Ouvindo Histórico de Envios
             const historyColRef = collection(db, 'artifacts', appIdentifier, 'users', currentUserUid, 'history');
             onSnapshot(historyColRef, (snapshot) => {
                 dbHistory = snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
-                
-                // Atualiza a visualização do histórico caso um cliente esteja selecionado
                 renderHistory();
             }, (error) => console.error("Erro History Snapshot:", error));
         }
@@ -453,7 +653,6 @@
                     message: sentMessage,
                     serverTime: serverTimestamp()
                 });
-                // Snapshot listener will update UI automatically
             } catch (error) {
                 console.error("Erro ao salvar histórico:", error);
                 showToast("Erro ao registrar no histórico", true);
@@ -470,7 +669,6 @@
 
             ui.historyWrapper.classList.remove('hidden');
             
-            // Filtra e ordena em memória (Respeitando regra de não usar queries complexas)
             const clientHistory = dbHistory
                 .filter(item => item.clientId === trackerId)
                 .sort((a, b) => b.timestamp - a.timestamp);
@@ -568,7 +766,6 @@
             
             let successCount = 0;
             
-            // Loop para salvar cada cliente
             for (const c of clients) {
                 try {
                     const idOriginal = c.id || Math.random().toString(36).substr(2, 9);
@@ -593,7 +790,7 @@
                         timestamp,
                         dataFormatada: new Date(timestamp).toLocaleDateString('pt-BR'),
                         horaFormatada: new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                    }, { merge: true }); // Merge evita sobrescrever dados se já existir
+                    }, { merge: true });
                     
                     successCount++;
                 } catch (e) {
@@ -661,7 +858,7 @@
                     ui.nameInput.value = client.nome;
                     ui.phoneInput.value = client.telefone;
                     ui.companyInput.value = client.empresa;
-                    ui.cityInput.value = client.nicho; // Nicho vira 'cidade' na UI conforme seu uso
+                    ui.cityInput.value = client.nicho;
                     
                     window.selectedClientDate = client.dataFormatada;
                     window.selectedClientTime = client.horaFormatada;
@@ -860,9 +1057,6 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !ui.modal.classList.contains('hidden')) closeModal();
         });
-
-        // Chama a inicialização
-        initializeAppLogic();
 
     </script>
 </body>
