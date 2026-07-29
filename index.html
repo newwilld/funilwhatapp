@@ -833,7 +833,6 @@
                     telefone,
                     empresa,
                     nicho,
-                    // Mantém o timestamp original
                 }, { merge: true });
                 
                 // Atualiza os campos na interface principal se for o cliente selecionado
@@ -922,18 +921,82 @@
                         continue; // Pula clientes existentes
                     }
                     
-                    let timestamp = Date.now();
-                    if (c.createdAt && c.createdAt.seconds) {
-                        timestamp = c.createdAt.seconds * 1000;
-                    } else if (c.createdAt) {
-                        timestamp = new Date(c.createdAt).getTime();
+                    // ========== LÓGICA DE DATA/HORA ==========
+                    let timestamp = Date.now(); // Valor padrão: data atual
+                    
+                    // 1. Tenta extrair do campo 'data_criacao' (formato: "DD/MM/AAAA, HH:MM")
+                    if (c.data_criacao) {
+                        try {
+                            const parts = c.data_criacao.split(',');
+                            if (parts.length === 2) {
+                                const datePart = parts[0].trim(); // "22/07/2026"
+                                const timePart = parts[1].trim(); // "23:20"
+                                
+                                const [day, month, year] = datePart.split('/');
+                                const [hours, minutes] = timePart.split(':');
+                                
+                                // Criar data no formato ISO (mês é 0-indexado em JS)
+                                const parsedDate = new Date(
+                                    parseInt(year), 
+                                    parseInt(month) - 1, 
+                                    parseInt(day), 
+                                    parseInt(hours) || 0, 
+                                    parseInt(minutes) || 0
+                                );
+                                
+                                if (!isNaN(parsedDate.getTime())) {
+                                    timestamp = parsedDate.getTime();
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Erro ao parsear data_criacao:', c.data_criacao);
+                        }
                     }
+                    
+                    // 2. Tenta do campo 'sortOrder' (timestamp em milissegundos)
+                    if (!c.data_criacao && c.sortOrder) {
+                        const sortOrderNum = parseInt(c.sortOrder);
+                        if (!isNaN(sortOrderNum) && sortOrderNum > 0) {
+                            timestamp = sortOrderNum;
+                        }
+                    }
+                    
+                    // 3. Tenta do campo 'createdAt' do Firebase (objeto com seconds)
+                    if (!c.data_criacao && !c.sortOrder && c.createdAt) {
+                        if (c.createdAt.seconds) {
+                            timestamp = c.createdAt.seconds * 1000;
+                        } else if (typeof c.createdAt === 'string') {
+                            const parsedDate = new Date(c.createdAt);
+                            if (!isNaN(parsedDate.getTime())) {
+                                timestamp = parsedDate.getTime();
+                            }
+                        } else if (typeof c.createdAt === 'number') {
+                            timestamp = c.createdAt;
+                        }
+                    }
+                    
+                    // 4. Tenta do campo 'timestamp' se existir
+                    if (!c.data_criacao && !c.sortOrder && !c.createdAt && c.timestamp) {
+                        const tsNum = parseInt(c.timestamp);
+                        if (!isNaN(tsNum) && tsNum > 0) {
+                            timestamp = tsNum;
+                        }
+                    }
+                    
+                    // Formatar data e hora para exibição
+                    const dateObj = new Date(timestamp);
+                    const dataFormatada = dateObj.toLocaleDateString('pt-BR');
+                    const horaFormatada = dateObj.toLocaleTimeString('pt-BR', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    });
+                    // ========== FIM DA LÓGICA DE DATA/HORA ==========
                     
                     // Gerar ID único para o novo cliente
                     const idOriginal = c.id || Math.random().toString(36).substr(2, 9);
                     
                     // Verificar se o ID já existe (por segurança)
-                    const existingDoc = await getDocs(collection(db, 'artifacts', appIdentifier, 'users', currentUserUid, 'clients'));
+                    const existingDoc = await getDocs(clientsColRef);
                     const idExists = existingDoc.docs.some(doc => doc.id === idOriginal);
                     
                     const finalId = idExists ? Math.random().toString(36).substr(2, 9) : idOriginal;
@@ -945,8 +1008,8 @@
                         empresa: marca,
                         nicho,
                         timestamp,
-                        dataFormatada: new Date(timestamp).toLocaleDateString('pt-BR'),
-                        horaFormatada: new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                        dataFormatada,
+                        horaFormatada
                     });
                     
                     // Adicionar ao mapa local para evitar duplicação dentro do mesmo lote
