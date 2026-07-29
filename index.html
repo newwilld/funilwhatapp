@@ -432,7 +432,6 @@
             historyWrapper: document.getElementById('history-wrapper'),
             historyList: document.getElementById('history-list'),
             emptyHistory: document.getElementById('empty-history'),
-            // Modal de edição de cliente
             clientEditModal: document.getElementById('client-edit-modal'),
             editClientName: document.getElementById('edit-client-name'),
             editClientPhone: document.getElementById('edit-client-phone'),
@@ -490,7 +489,6 @@
                 return;
             }
             
-            // Mostrar loading
             ui.authBtnText.classList.add('hidden');
             ui.authSpinner.classList.remove('hidden');
             ui.authSubmitBtn.disabled = true;
@@ -619,7 +617,6 @@
             const clientsColRef = collection(db, 'artifacts', appIdentifier, 'users', currentUserUid, 'clients');
             onSnapshot(clientsColRef, (snapshot) => {
                 dbClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                // Ordenar por timestamp decrescente (mais recentes primeiro)
                 dbClients.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
                 updateClientsUI();
             }, (error) => console.error("Erro Clients Snapshot:", error));
@@ -835,7 +832,6 @@
                     nicho,
                 }, { merge: true });
                 
-                // Atualiza os campos na interface principal se for o cliente selecionado
                 if (window.selectedClientId === clientId) {
                     ui.nameInput.value = nome;
                     ui.phoneInput.value = telefone;
@@ -852,7 +848,6 @@
             }
         }
 
-        // Event listeners do modal de cliente
         document.getElementById('close-client-modal-btn').addEventListener('click', closeClientEditModal);
         document.getElementById('cancel-client-edit-btn').addEventListener('click', closeClientEditModal);
         document.getElementById('client-modal-backdrop').addEventListener('click', closeClientEditModal);
@@ -872,7 +867,6 @@
                     const data = JSON.parse(event.target.result);
                     let clientsArray = [];
 
-                    // Verifica se é um array ou objeto com propriedade "clientes"
                     if (Array.isArray(data)) {
                         clientsArray = data;
                     } else if (data.clientes && Array.isArray(data.clientes)) {
@@ -899,7 +893,6 @@
             if (!currentUserUid) return;
             const clientsColRef = collection(db, 'artifacts', appIdentifier, 'users', currentUserUid, 'clients');
             
-            // Criar um mapa de clientes existentes pelo telefone (chave única)
             const existingClientsMap = new Map();
             dbClients.forEach(c => {
                 const phone = (c.telefone || '').replace(/\D/g, '');
@@ -911,53 +904,126 @@
             let newCount = 0;
             let skippedCount = 0;
             
+            // Função auxiliar para verificar se uma string parece um telefone
+            function isPhoneNumber(str) {
+                if (!str) return false;
+                const cleaned = str.replace(/\D/g, '');
+                return cleaned.length >= 8 && /^[\d\s\+\-\(\)]+$/.test(str);
+            }
+            
+            // Função auxiliar para limpar telefone
+            function cleanPhone(str) {
+                return str.replace(/[^\d]/g, '');
+            }
+            
             for (const c of clients) {
                 try {
-                    // ========== EXTRAIR APENAS OS CAMPOS NECESSÁRIOS ==========
+                    // ========== EXTRAIR CAMPOS COM DETECÇÃO INTELIGENTE ==========
                     
-                    // Nome: tenta nomeCliente, depois nome
-                    const nome = (c.nomeCliente || c.nome || '').trim();
+                    const nomeBruto = (c.nomeCliente || c.nome || '').trim();
                     
-                    // Contato/Telefone: tenta contato, depois telefone, depois phone
-                    const contatoBruto = (c.contato || c.telefone || c.phone || '');
-                    const contato = contatoBruto.replace(/\D/g, ''); // Remove tudo que não é número
+                    const contatoBruto = (c.contato || '').trim();
+                    const telefoneBruto = (c.telefone || '').trim();
+                    const phoneBruto = (c.phone || '').trim();
+                    const empresaBruta = (c.empresa || '').trim();
+                    const nomeMarcaBruta = (c.nomeMarca || '').trim();
                     
-                    // Marca/Empresa: tenta nomeMarca, depois empresa
-                    const marca = (c.nomeMarca || c.empresa || '').trim();
+                    // Array de possíveis fontes de telefone
+                    const phoneCandidates = [];
                     
-                    // Nicho/Segmento: tenta nicho, depois segmento
-                    const nicho = (c.nicho || c.segmento || '').trim();
+                    if (contatoBruto && isPhoneNumber(contatoBruto)) {
+                        phoneCandidates.push({ phone: cleanPhone(contatoBruto) });
+                    }
+                    
+                    if (telefoneBruto && isPhoneNumber(telefoneBruto)) {
+                        phoneCandidates.push({ phone: cleanPhone(telefoneBruto) });
+                    }
+                    
+                    if (phoneBruto && isPhoneNumber(phoneBruto)) {
+                        phoneCandidates.push({ phone: cleanPhone(phoneBruto) });
+                    }
+                    
+                    // Verificar campos que podem estar trocados
+                    if (empresaBruta && isPhoneNumber(empresaBruta)) {
+                        phoneCandidates.push({ phone: cleanPhone(empresaBruta) });
+                    }
+                    
+                    if (nomeMarcaBruta && isPhoneNumber(nomeMarcaBruta)) {
+                        phoneCandidates.push({ phone: cleanPhone(nomeMarcaBruta) });
+                    }
+                    
+                    // Encontrar o telefone mais longo
+                    let contato = '';
+                    if (phoneCandidates.length > 0) {
+                        phoneCandidates.sort((a, b) => b.phone.length - a.phone.length);
+                        contato = phoneCandidates[0].phone;
+                    }
+                    
+                    // Se não encontrou, tentar extrair números de qualquer campo
+                    if (!contato) {
+                        const allFields = [contatoBruto, telefoneBruto, phoneBruto, empresaBruta, nomeMarcaBruta];
+                        for (const field of allFields) {
+                            const numbers = cleanPhone(field);
+                            if (numbers.length >= 8) {
+                                contato = numbers;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Determinar qual é a empresa/marca real
+                    let marca = '';
+                    
+                    if (empresaBruta && isPhoneNumber(empresaBruta)) {
+                        // Empresa contém telefone, então está trocado
+                        if (contatoBruto && !isPhoneNumber(contatoBruto)) {
+                            marca = contatoBruto;
+                        } else if (nomeMarcaBruta && !isPhoneNumber(nomeMarcaBruta)) {
+                            marca = nomeMarcaBruta;
+                        }
+                    } else if (contatoBruto && !isPhoneNumber(contatoBruto) && empresaBruta && !isPhoneNumber(empresaBruta)) {
+                        marca = empresaBruta || nomeMarcaBruta;
+                    } else {
+                        marca = empresaBruta || nomeMarcaBruta;
+                    }
+                    
+                    // Fallback para marca
+                    if (!marca || isPhoneNumber(marca)) {
+                        if (nomeMarcaBruta && !isPhoneNumber(nomeMarcaBruta)) {
+                            marca = nomeMarcaBruta;
+                        } else if (contatoBruto && !isPhoneNumber(contatoBruto)) {
+                            marca = contatoBruto;
+                        }
+                    }
+                    
+                    const nicho = (c.nicho || c.segmento || c.obs || '').trim();
                     
                     // ========== FIM EXTRAÇÃO DE CAMPOS ==========
                     
-                    // Pular se não tiver telefone
                     if (!contato) {
                         skippedCount++;
                         continue;
                     }
                     
-                    // Verificar se já existe cliente com este telefone
                     if (existingClientsMap.has(contato)) {
                         skippedCount++;
-                        continue; // Pula clientes existentes
+                        continue;
                     }
                     
                     // ========== LÓGICA DE DATA/HORA ==========
-                    let timestamp = Date.now(); // Valor padrão: data atual
+                    let timestamp = Date.now();
                     
-                    // 1. Tenta extrair do campo 'data_criacao' (formato: "DD/MM/AAAA, HH:MM")
                     if (c.data_criacao) {
                         try {
                             const dataCriacao = c.data_criacao.toString().trim();
                             
-                            // Formato: "22/07/2026, 23:20"
                             if (dataCriacao.includes(',')) {
                                 const parts = dataCriacao.split(',');
                                 if (parts.length === 2) {
                                     const datePart = parts[0].trim();
                                     const timePart = parts[1].trim();
-                                    
                                     const dateParts = datePart.split('/');
+                                    
                                     if (dateParts.length === 3) {
                                         const [day, month, year] = dateParts;
                                         const timeParts = timePart.split(':');
@@ -977,16 +1043,12 @@
                                         }
                                     }
                                 }
-                            }
-                            // Formato: "2026-03-13" (ISO date)
-                            else if (dataCriacao.includes('-')) {
+                            } else if (dataCriacao.includes('-')) {
                                 const parsedDate = new Date(dataCriacao + 'T00:00:00');
                                 if (!isNaN(parsedDate.getTime())) {
                                     timestamp = parsedDate.getTime();
                                 }
-                            }
-                            // Formato: "2026-03-13T07:45:00" (ISO datetime)
-                            else {
+                            } else {
                                 const parsedDate = new Date(dataCriacao);
                                 if (!isNaN(parsedDate.getTime())) {
                                     timestamp = parsedDate.getTime();
@@ -997,7 +1059,6 @@
                         }
                     }
                     
-                    // 2. Tenta do campo 'sortOrder' (timestamp em milissegundos)
                     if (!c.data_criacao && c.sortOrder) {
                         const sortOrderNum = parseInt(c.sortOrder);
                         if (!isNaN(sortOrderNum) && sortOrderNum > 0) {
@@ -1005,57 +1066,28 @@
                         }
                     }
                     
-                    // 3. Tenta do campo 'createdAt' do Firebase (objeto com seconds)
-                    if (!c.data_criacao && !c.sortOrder && c.createdAt) {
-                        if (c.createdAt.seconds) {
-                            timestamp = c.createdAt.seconds * 1000;
-                        } else if (typeof c.createdAt === 'string') {
-                            const parsedDate = new Date(c.createdAt);
-                            if (!isNaN(parsedDate.getTime())) {
-                                timestamp = parsedDate.getTime();
-                            }
-                        } else if (typeof c.createdAt === 'number') {
-                            timestamp = c.createdAt;
-                        }
-                    }
-                    
-                    // 4. Tenta do campo 'data' (formato: "2026-03-13")
-                    if (!c.data_criacao && !c.sortOrder && !c.createdAt && c.data) {
+                    if (!c.data_criacao && !c.sortOrder && c.data) {
                         const parsedDate = new Date(c.data + 'T00:00:00');
                         if (!isNaN(parsedDate.getTime())) {
                             timestamp = parsedDate.getTime();
                         }
                     }
                     
-                    // 5. Tenta do campo 'timestamp' se existir
-                    if (!c.data_criacao && !c.sortOrder && !c.createdAt && !c.data && c.timestamp) {
-                        const tsNum = parseInt(c.timestamp);
-                        if (!isNaN(tsNum) && tsNum > 0) {
-                            timestamp = tsNum;
-                        }
-                    }
-                    
-                    // Formatar data e hora para exibição
                     const dateObj = new Date(timestamp);
                     const dataFormatada = dateObj.toLocaleDateString('pt-BR');
                     const horaFormatada = dateObj.toLocaleTimeString('pt-BR', { 
                         hour: '2-digit', 
                         minute: '2-digit' 
                     });
-                    // ========== FIM DA LÓGICA DE DATA/HORA ==========
                     
-                    // Gerar ID único para o novo cliente
                     const idOriginal = c.id || Math.random().toString(36).substr(2, 9);
-                    
-                    // Verificar se o ID já existe (por segurança)
                     const existingDoc = await getDocs(clientsColRef);
                     const idExists = existingDoc.docs.some(doc => doc.id === idOriginal);
-                    
                     const finalId = idExists ? Math.random().toString(36).substr(2, 9) : idOriginal;
                     
                     const docRef = doc(clientsColRef, finalId);
                     await setDoc(docRef, {
-                        nome,
+                        nome: nomeBruto,
                         telefone: contato,
                         empresa: marca,
                         nicho,
@@ -1064,7 +1096,6 @@
                         horaFormatada
                     });
                     
-                    // Adicionar ao mapa local para evitar duplicação dentro do mesmo lote
                     existingClientsMap.set(contato, { id: finalId });
                     newCount++;
                     
@@ -1143,15 +1174,12 @@
                     </div>
                 `;
 
-                // Clique no card seleciona o cliente
                 card.addEventListener('click', (e) => {
-                    // Se clicou no nome, abre modal de edição
                     if (e.target.closest('.font-semibold')) {
                         openClientEditModal(client.id);
                         return;
                     }
                     
-                    // Caso contrário, seleciona o cliente
                     ui.nameInput.value = client.nome;
                     ui.phoneInput.value = client.telefone;
                     ui.companyInput.value = client.empresa;
@@ -1329,7 +1357,6 @@
             }
         }
 
-        // Variáveis no modal
         document.querySelectorAll('code').forEach(tag => {
             tag.style.cursor = 'pointer';
             tag.addEventListener('click', () => {
